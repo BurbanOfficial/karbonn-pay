@@ -156,6 +156,27 @@
     color: var(--accent);
   }
 
+  .pay-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 24px;
+    padding: 12px 22px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .pay-back:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
   /* ── États ── */
   .pay-state { display: none; }
   .pay-state.visible { display: block; }
@@ -238,6 +259,7 @@
         <div class="pay-state-icon pending-icon"><i class="fa-solid fa-clock"></i></div>
         <h2>Prélèvement en cours</h2>
         <p>Votre demande de prélèvement a été enregistrée.<br>Votre compte sera débité de <strong id="processing-amount"></strong> sous quelques jours ouvrés.<br>La facture sera automatiquement marquée payée dès réception.</p>
+        <a class="pay-back" href="https://karbonn.fr/espace-client"><i class="fa-solid fa-arrow-left"></i> Retour à l'espace client</a>
       </div>
 
       <!-- Payée -->
@@ -245,6 +267,7 @@
         <div class="pay-state-icon success"><i class="fa-solid fa-check"></i></div>
         <h2>Paiement reçu</h2>
         <p>Votre facture <strong id="paid-number"></strong> a été réglée.<br>Merci pour votre confiance.</p>
+        <a class="pay-back" href="https://karbonn.fr/espace-client"><i class="fa-solid fa-arrow-left"></i> Retour à l'espace client</a>
       </div>
 
       <!-- Erreur / expiré -->
@@ -309,6 +332,13 @@ async function load() {
     }
     if (d.status === 'expired') {
       return showError('Lien expiré', 'Ce lien de paiement a expiré. Contactez Karbonn pour en obtenir un nouveau.');
+    }
+
+    // Un prélèvement est déjà en cours ou terminé → afficher directement l'écran de suivi
+    if (d.paymentIntentStatus === 'processing' || d.paymentIntentStatus === 'succeeded') {
+      show('pay-processing');
+      startPolling();
+      return;
     }
 
     // Un PaymentIntent existe déjà → reprendre là où le client en était
