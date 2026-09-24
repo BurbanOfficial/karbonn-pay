@@ -6,6 +6,7 @@
 <title>Paiement sécurisé — Karbonn.</title>
 <link rel="icon" href="https://i.imgur.com/61Dv12I.png" type="image/png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://js.stripe.com/v3/"></script>
 <style>
   :root {
     --text: #1d1d1f;
@@ -123,10 +124,7 @@
     color: var(--muted);
   }
 
-  /* ── Instructions de virement ── */
-  .bank-block { display: none; text-align: left; }
-  .bank-block.visible { display: block; }
-
+  /* ── Formulaire SEPA ── */
   .bank-intro {
     font-size: 0.9rem;
     color: var(--muted);
@@ -135,70 +133,27 @@
     text-align: center;
   }
 
-  .bank-field {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+  .sepa-element {
     background: var(--bg);
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+    text-align: left;
   }
 
-  .bank-field .k {
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-    margin-bottom: 3px;
-  }
-
-  .bank-field .v {
-    font-size: 0.95rem;
-    font-weight: 600;
-    font-family: "SF Mono", ui-monospace, Menlo, monospace;
-    word-break: break-all;
-  }
-
-  .bank-copy {
-    flex-shrink: 0;
-    border: none;
-    background: rgba(0, 113, 227, 0.1);
-    color: var(--accent);
-    font-size: 0.78rem;
-    font-weight: 600;
-    font-family: inherit;
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .bank-copy:hover { background: rgba(0, 113, 227, 0.18); }
-  .bank-copy.copied { color: var(--success); background: rgba(52, 199, 89, 0.12); }
-
-  .bank-note {
-    font-size: 0.8rem;
-    color: var(--muted);
-    line-height: 1.6;
-    margin-top: 18px;
-    padding: 14px 16px;
-    background: rgba(0, 113, 227, 0.06);
-    border-radius: 12px;
-  }
-
-  .bank-note i { color: var(--accent); margin-right: 6px; }
-
-  .pay-pending {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 16px;
+  .pay-error-msg {
+    display: none;
     font-size: 0.82rem;
-    color: var(--muted);
+    color: var(--error);
+    margin-bottom: 14px;
+  }
+
+  .pay-error-msg.visible { display: block; }
+
+  .pending-icon {
+    background: rgba(0, 113, 227, 0.12);
+    color: var(--accent);
   }
 
   /* ── États ── */
@@ -265,41 +220,24 @@
           <div class="pay-meta-row"><span class="k">Facture</span><span class="v" id="pay-number">—</span></div>
           <div class="pay-meta-row"><span class="k">Expire le</span><span class="v" id="pay-expiry">—</span></div>
         </div>
-        <button class="pay-cta" id="pay-cta"><i class="fa-solid fa-building-columns"></i> Payer par virement bancaire</button>
+        <button class="pay-cta" id="pay-cta"><i class="fa-solid fa-building-columns"></i> Payer par prélèvement bancaire</button>
         <div class="pay-secure"><i class="fa-solid fa-lock"></i> Paiement sécurisé via Stripe</div>
       </div>
 
-      <!-- Instructions de virement -->
-      <div class="pay-state bank-block" id="pay-bank">
-        <p class="bank-intro">Effectuez un virement SEPA vers les coordonnées ci-dessous.<br>Le paiement sera automatiquement rapproché de votre facture.</p>
+      <!-- Formulaire prélèvement SEPA -->
+      <div class="pay-state" id="pay-sepa">
+        <p class="bank-intro">Renseignez vos coordonnées bancaires ci-dessous.<br>Le prélèvement SEPA sera exécuté sous quelques jours ouvrés.</p>
+        <div id="sepa-element" class="sepa-element"></div>
+        <div id="sepa-error" class="pay-error-msg"></div>
+        <button class="pay-cta" id="sepa-confirm" disabled><i class="fa-solid fa-lock"></i> Confirmer le prélèvement</button>
+        <div class="pay-secure"><i class="fa-solid fa-shield-halved"></i> Vos données bancaires sont transmises chiffrées à Stripe — elles ne transitent jamais par nos serveurs.</div>
+      </div>
 
-        <div class="bank-field">
-          <div><div class="k">IBAN</div><div class="v" id="bank-iban">—</div></div>
-          <button class="bank-copy" data-copy="bank-iban">Copier</button>
-        </div>
-        <div class="bank-field">
-          <div><div class="k">BIC</div><div class="v" id="bank-bic">—</div></div>
-          <button class="bank-copy" data-copy="bank-bic">Copier</button>
-        </div>
-        <div class="bank-field">
-          <div><div class="k">Bénéficiaire</div><div class="v" id="bank-holder">—</div></div>
-          <button class="bank-copy" data-copy="bank-holder">Copier</button>
-        </div>
-        <div class="bank-field">
-          <div><div class="k">Montant exact</div><div class="v" id="bank-amount">—</div></div>
-          <button class="bank-copy" data-copy="bank-amount">Copier</button>
-        </div>
-        <div class="bank-field">
-          <div><div class="k">Référence du virement</div><div class="v" id="bank-ref">—</div></div>
-          <button class="bank-copy" data-copy="bank-ref">Copier</button>
-        </div>
-
-        <div class="bank-note">
-          <i class="fa-solid fa-circle-info"></i>Indiquez impérativement la <strong>référence</strong> dans le libellé de votre virement et le <strong>montant exact</strong>. Le virement est généralement crédité sous quelques minutes à 2 jours ouvrés selon votre banque.
-        </div>
-        <div class="pay-pending" id="pay-pending">
-          <i class="fa-solid fa-circle-notch fa-spin"></i> En attente de votre virement…
-        </div>
+      <!-- Prélèvement en cours -->
+      <div class="pay-state" id="pay-processing">
+        <div class="pay-state-icon pending-icon"><i class="fa-solid fa-clock"></i></div>
+        <h2>Prélèvement en cours</h2>
+        <p>Votre demande de prélèvement a été enregistrée.<br>Votre compte sera débité de <strong id="processing-amount"></strong> sous quelques jours ouvrés.<br>La facture sera automatiquement marquée payée dès réception.</p>
       </div>
 
       <!-- Payée -->
@@ -325,14 +263,17 @@
 
 <script>
 const API = 'https://karbonn-x-abby.onrender.com';
+const STRIPE_PK = 'pk_live_51Trn3T3bEnjxdETqSV2lBIrj9V5zPY6fVVF7TQPMbE5xKskA8sxpEGd3hL7JZf7eAal2aeBarOnYX48EXtwzXxdK00zCCpuSgV';
 const token = (location.pathname.match(/\/p\/([A-Za-z0-9_-]+)/) || [])[1] || new URLSearchParams(location.search).get('t') || '';
 let pollTimer = null;
+let stripe = null;
+let sepaElements = null;
 
 const $ = id => document.getElementById(id);
 const fmt = (v, c = 'EUR') => Number(v || 0).toLocaleString('fr-FR', { style: 'currency', currency: c });
 
 function show(state) {
-  ['pay-loading', 'pay-ready', 'pay-bank', 'pay-paid', 'pay-error'].forEach(id => {
+  ['pay-loading', 'pay-ready', 'pay-sepa', 'pay-processing', 'pay-paid', 'pay-error'].forEach(id => {
     $(id).classList.toggle('visible', id === state);
     if (id === 'pay-loading') $(id).style.display = id === state ? 'flex' : 'none';
   });
@@ -360,6 +301,7 @@ async function load() {
     $('pay-client').textContent = d.clientName;
     $('pay-client-id').textContent = d.clientId;
     $('pay-expiry').textContent = d.expiresAt ? new Date(d.expiresAt).toLocaleDateString('fr-FR') : '—';
+    $('processing-amount').textContent = fmt(d.amount, d.currency);
 
     if (d.status === 'paid') {
       $('paid-number').textContent = d.invoiceNumber;
@@ -369,8 +311,9 @@ async function load() {
       return showError('Lien expiré', 'Ce lien de paiement a expiré. Contactez Karbonn pour en obtenir un nouveau.');
     }
 
-    if (d.hasBankTransfer) {
-      await loadInstructions();
+    // Un PaymentIntent existe déjà → reprendre là où le client en était
+    if (d.hasPaymentIntent) {
+      await initSepaDebit();
     } else {
       show('pay-ready');
     }
@@ -379,25 +322,71 @@ async function load() {
   }
 }
 
-async function loadInstructions() {
+async function initSepaDebit() {
   try {
-    const res = await fetch(`${API}/api/public/pay/${encodeURIComponent(token)}/bank-transfer`, { method: 'POST' });
+    const res = await fetch(`${API}/api/public/pay/${encodeURIComponent(token)}/sepa-debit`, { method: 'POST' });
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
-      return showError('Erreur', e.error || 'Impossible de générer les instructions de virement.');
+      return showError('Erreur', e.error || 'Impossible de préparer le paiement.');
     }
-    const inst = await res.json();
-    $('bank-iban').textContent = (inst.iban || '').replace(/(.{4})/g, '$1 ').trim();
-    $('bank-iban').dataset.raw = inst.iban || '';
-    $('bank-bic').textContent = inst.bic || '—';
-    $('bank-holder').textContent = inst.accountHolder || '—';
-    $('bank-amount').textContent = fmt((inst.amountRemaining || 0) / 100, (inst.currency || 'eur').toUpperCase());
-    $('bank-ref').textContent = inst.reference || '—';
-    show('pay-bank');
-    startPolling();
+    const data = await res.json();
+
+    if (data.processing) {
+      show('pay-processing');
+      startPolling();
+      return;
+    }
+    if (!data.clientSecret) {
+      return showError('Erreur', 'Impossible de préparer le paiement.');
+    }
+
+    if (!stripe) stripe = Stripe(STRIPE_PK);
+    sepaElements = stripe.elements({
+      clientSecret: data.clientSecret,
+      locale: 'fr',
+      appearance: {
+        theme: 'stripe',
+        variables: {
+          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif',
+          borderRadius: '10px',
+          colorPrimary: '#0071e3'
+        }
+      }
+    });
+    const el = sepaElements.create('payment', { paymentMethodOrder: ['sepa_debit'] });
+    el.mount('#sepa-element');
+    el.on('ready', () => { $('sepa-confirm').disabled = false; });
+    show('pay-sepa');
   } catch (err) {
-    showError('Erreur', 'Impossible de générer les instructions de virement.');
+    showError('Erreur', 'Impossible de préparer le paiement.');
   }
+}
+
+async function confirmSepaDebit() {
+  const btn = $('sepa-confirm');
+  const errEl = $('sepa-error');
+  if (!stripe || !sepaElements) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Confirmation…';
+  errEl.classList.remove('visible');
+
+  const { error, paymentIntent } = await stripe.confirmSepaDebitPayment({
+    elements: sepaElements,
+    confirmParams: { return_url: window.location.href },
+    redirect: 'if_required'
+  });
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.add('visible');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-lock"></i> Confirmer le prélèvement';
+    return;
+  }
+
+  // SEPA = processing : le débit intervient sous quelques jours ouvrés
+  show('pay-processing');
+  startPolling();
 }
 
 function startPolling() {
@@ -419,22 +408,11 @@ function startPolling() {
 $('pay-cta').addEventListener('click', async () => {
   const btn = $('pay-cta');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Génération des instructions…';
-  await loadInstructions();
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Préparation…';
+  await initSepaDebit();
 });
 
-document.querySelectorAll('.bank-copy').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const el = $(btn.dataset.copy);
-    const text = el.dataset.raw || el.textContent;
-    try {
-      await navigator.clipboard.writeText(text);
-      btn.textContent = 'Copié ✓';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
-    } catch {}
-  });
-});
+$('sepa-confirm').addEventListener('click', confirmSepaDebit);
 
 load();
 </script>
