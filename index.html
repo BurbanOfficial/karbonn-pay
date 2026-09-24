@@ -370,7 +370,7 @@ async function confirmSepaDebit() {
   btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Confirmation…';
   errEl.classList.remove('visible');
 
-  const { error, paymentIntent } = await stripe.confirmSepaDebitPayment({
+  const { error } = await stripe.confirmPayment({
     elements: sepaElements,
     confirmParams: { return_url: window.location.href },
     redirect: 'if_required'
